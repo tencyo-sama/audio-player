@@ -24,7 +24,7 @@
         </header>
 
         <!-- Main Content (Visualizer/Video) -->
-        <main class="flex-grow-1 d-flex justify-content-center align-items-center bg-black position-relative overflow-hidden" id="visualizerContainer">
+        <main class="flex-grow-1 d-flex justify-content-center align-items-center bg-black position-relative overflow-hidden" id="visualizerContainer" style="min-height: 0;">
             <video id="videoPlayer" class="d-none w-100 h-100" style="object-fit: contain;" playsinline></video>
             <div id="audioVisualizer" class="text-center text-secondary">
                 <i class="bi bi-music-note-list" style="font-size: 5rem;"></i>
@@ -32,102 +32,117 @@
             </div>
             
             <!-- Fullscreen Button (Video only) -->
-            <button id="btnFullscreen" class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-3 d-none">
+            <button id="btnFullscreen" class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-3 d-none" style="z-index: 1050;">
                 <i class="bi bi-arrows-fullscreen"></i>
             </button>
+
+            <!-- Loop Info Overlay -->
+            <div id="loopInfoOverlay" class="position-absolute bottom-0 start-50 translate-middle-x mb-3 bg-dark bg-opacity-75 px-3 py-1 rounded text-light d-none" style="z-index: 1040; font-size: 0.8rem;">
+                <span id="loopStartDisplay">--:--</span> ~ <span id="loopEndDisplay">--:--</span>
+            </div>
         </main>
 
         <!-- Controls -->
-        <footer class="bg-dark border-top border-secondary p-3">
+        <footer class="bg-dark border-top border-secondary p-2">
             <!-- Seek Bar -->
-            <div class="row mb-3">
+            <div class="row mb-2 g-0">
                 <div class="col-12">
-                    <input type="range" class="form-range" id="seekBar" value="0" min="0" max="100" step="0.1">
-                    <div class="d-flex justify-content-between text-secondary small">
+                    <input type="range" class="form-range form-range-sm" id="seekBar" value="0" min="0" max="100" step="0.1">
+                    <div class="d-flex justify-content-between text-secondary" style="font-size: 0.7rem;">
                         <span id="currentTime">0:00</span>
                         <span id="totalTime">0:00</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Buttons -->
-            <div class="row mb-4 align-items-center justify-content-center">
-                <div class="col-auto d-flex gap-3 align-items-center">
-                    <button class="btn btn-outline-secondary rounded-circle" id="btnLoopToggle" title="Loop Mode">
-                        <i class="bi bi-repeat"></i>
-                    </button>
-                    <button class="btn btn-outline-light rounded-circle" id="btnSkipBack">
-                        <i class="bi bi-arrow-counterclockwise"></i> 5s
-                    </button>
-                    <button class="btn btn-play-lg rounded-circle text-white shadow" id="btnPlayPause">
-                        <i class="bi bi-play-fill" style="font-size: 2rem;"></i>
-                    </button>
-                    <button class="btn btn-outline-light rounded-circle" id="btnStop">
-                        <i class="bi bi-stop-fill"></i>
-                    </button>
-                    <button class="btn btn-outline-light rounded-circle" id="btnSkipFwd">
-                        5s <i class="bi bi-arrow-clockwise"></i>
-                    </button>
-                </div>
+            <!-- Main Buttons (Compact) -->
+            <div class="d-flex justify-content-center gap-3 mb-2">
+                <!-- Loop Button (State: Off -> All -> AB) -->
+                <button class="btn btn-sm btn-outline-secondary rounded-circle" id="btnLoopToggle" title="Loop Mode">
+                    <i class="bi bi-repeat" id="iconLoop"></i>
+                </button>
+                
+                <button class="btn btn-sm btn-outline-light rounded-circle" id="btnSkipBack" title="-5s">
+                    <i class="bi bi-arrow-counterclockwise"></i> 5s
+                </button>
+                <button class="btn btn-play rounded-circle text-white shadow bg-primary border-0" id="btnPlayPause" style="width: 50px; height: 50px;">
+                    <i class="bi bi-play-fill" style="font-size: 1.8rem;"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light rounded-circle" id="btnStop">
+                    <i class="bi bi-stop-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-light rounded-circle" id="btnSkipFwd" title="+5s">
+                    5s <i class="bi bi-arrow-clockwise"></i>
+                </button>
             </div>
 
             <!-- Parameters & Loop Settings -->
-            <div class="row g-3">
-                <!-- Tempo -->
-                <div class="col-md-4">
+            <div class="row g-2">
+                <!-- Tempo & Pitch -->
+                <div class="col-6">
                     <div class="card bg-dark border-secondary h-100">
-                        <div class="card-body p-2">
-                            <label class="form-label small text-secondary d-flex justify-content-between">
-                                Tempo <span id="valTempo" class="text-light">100%</span>
-                            </label>
-                            <input type="range" class="form-range" id="sliderTempo" min="0.5" max="2.0" step="0.01" value="1.0">
-                            <div class="d-flex justify-content-between mt-1">
-                                <button class="btn btn-xs btn-outline-secondary" id="btnTempoDown">-5%</button>
-                                <button class="btn btn-xs btn-outline-secondary" id="btnTempoReset">Reset</button>
-                                <button class="btn btn-xs btn-outline-secondary" id="btnTempoUp">+5%</button>
+                        <div class="card-body p-1 text-center">
+                            <label class="small text-secondary d-block mb-1">Tempo <span id="valTempo" class="text-light">100%</span></label>
+                            <div class="btn-group btn-group-sm w-100" role="group">
+                                <button class="btn btn-outline-secondary" id="btnTempoDown">-</button>
+                                <button class="btn btn-outline-secondary" id="btnTempoReset">R</button>
+                                <button class="btn btn-outline-secondary" id="btnTempoUp">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card bg-dark border-secondary h-100">
+                        <div class="card-body p-1 text-center">
+                            <label class="small text-secondary d-block mb-1">Pitch <span id="valPitch" class="text-light">0</span></label>
+                            <div class="btn-group btn-group-sm w-100" role="group">
+                                <button class="btn btn-outline-secondary" id="btnPitchDown">-</button>
+                                <button class="btn btn-outline-secondary" id="btnPitchReset">R</button>
+                                <button class="btn btn-outline-secondary" id="btnPitchUp">+</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Pitch -->
-                <div class="col-md-4">
-                    <div class="card bg-dark border-secondary h-100">
-                        <div class="card-body p-2">
-                            <label class="form-label small text-secondary d-flex justify-content-between">
-                                Pitch <span id="valPitch" class="text-light">0</span>
-                            </label>
-                            <input type="range" class="form-range" id="sliderPitch" min="-12" max="12" step="1" value="0">
-                            <div class="d-flex justify-content-between mt-1">
-                                <button class="btn btn-xs btn-outline-secondary" id="btnPitchDown">-1</button>
-                                <button class="btn btn-xs btn-outline-secondary" id="btnPitchReset">Reset</button>
-                                <button class="btn btn-xs btn-outline-secondary" id="btnPitchUp">+1</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Loop & Sync -->
-                <div class="col-md-4">
-                    <div class="card bg-dark border-secondary h-100">
-                        <div class="card-body p-2 d-flex flex-column gap-2">
-                            <!-- Loop Points -->
-                            <div class="d-flex gap-1 justify-content-between">
-                                <button class="btn btn-sm btn-outline-info flex-grow-1" id="btnSetA">Set A</button>
-                                <button class="btn btn-sm btn-outline-info flex-grow-1" id="btnSetB">Set B</button>
-                                <button class="btn btn-sm btn-outline-danger" id="btnClearLoop" title="Clear Loop"><i class="bi bi-x-lg"></i></button>
+                <!-- Loop Control & Sync -->
+                <div class="col-12">
+                    <div class="card bg-dark border-secondary">
+                        <div class="card-body p-1">
+                            <!-- Loop Set Buttons -->
+                            <div class="d-flex gap-1 mb-2 align-items-center">
+                                <div class="btn-group flex-grow-1" role="group">
+                                    <button class="btn btn-sm btn-outline-info py-0" id="btnSetA" style="font-size: 0.8rem;">Set A</button>
+                                    <button class="btn btn-sm btn-outline-info py-0" id="btnSetB" style="font-size: 0.8rem;">Set B</button>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger py-0" id="btnClearLoop" title="Clear Loop"><i class="bi bi-x-lg"></i></button>
                             </div>
                             
-                            <!-- A/V Sync -->
-                            <div class="mt-auto">
-                                <label class="form-label small text-secondary d-flex justify-content-between mb-0">
-                                    A/V Sync <span id="valSync" class="text-light">0.00s</span>
-                                </label>
-                                <input type="range" class="form-range" id="sliderSync" min="-1.0" max="1.0" step="0.01" value="0">
-                                <div class="d-flex justify-content-between mt-1">
-                                    <button class="btn btn-xs btn-outline-secondary" id="btnSyncDown">-0.05s</button>
-                                    <button class="btn btn-xs btn-outline-secondary" id="btnSyncReset">Reset</button>
-                                    <button class="btn btn-xs btn-outline-secondary" id="btnSyncUp">+0.05s</button>
+                            <!-- A/V Sync (Wide Range Manual Control) -->
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="toggleSyncCorrection" checked>
+                                    <label class="form-check-label small text-secondary" for="toggleSyncCorrection" style="font-size: 0.7rem;">Auto</label>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small text-secondary" style="font-size: 0.7rem;">Sync Offset (±20s)</span>
+                                        <span id="valSync" class="text-light small" style="font-size: 0.7rem;">0.00s</span>
+                                    </div>
+                                    <!-- Sync Controls Grid -->
+                                    <div class="d-flex align-items-center gap-1">
+                                        <!-- Big Step Down (-1s) -->
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" id="btnSyncBigDown" style="font-size: 0.7rem; width: 25px;">&lt;&lt;</button>
+                                        <!-- Fine Step Down (-0.05s) -->
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" id="btnSyncFineDown" style="font-size: 0.7rem; width: 25px;">&lt;</button>
+                                        
+                                        <!-- Slider (-20.0 to 20.0) -->
+                                        <input type="range" class="form-range form-range-sm" id="sliderSync" min="-20.0" max="20.0" step="0.05" value="0">
+                                        
+                                        <!-- Fine Step Up (+0.05s) -->
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" id="btnSyncFineUp" style="font-size: 0.7rem; width: 25px;">&gt;</button>
+                                        <!-- Big Step Up (+1s) -->
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1" id="btnSyncBigUp" style="font-size: 0.7rem; width: 25px;">&gt;&gt;</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
