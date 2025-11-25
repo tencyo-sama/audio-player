@@ -1,0 +1,115 @@
+:root {
+    --bg-dark: #0d0f12;
+    --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --accent-color: #667eea;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #e0e0e0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #1a1d21; 
+}
+::-webkit-scrollbar-thumb {
+    background: #444; 
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
+
+/* Header & Footer */
+header, footer {
+    background-color: #16191d !important;
+}
+
+/* Visualizer / Video Area */
+#visualizerContainer {
+    background: #000;
+    position: relative;
+}
+
+/* Play Button */
+.btn-play-lg {
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-gradient);
+    border: none;
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+.btn-play-lg:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(118, 75, 162, 0.5) !important;
+}
+.btn-play-lg:active {
+    transform: scale(0.95);
+}
+
+/* Small Buttons */
+.btn-xs {
+    padding: 0.1rem 0.4rem;
+    font-size: 0.75rem;
+    border-radius: 0.2rem;
+}
+
+/* Custom Range Slider */
+input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+}
+
+input[type=range]:focus {
+    outline: none;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    margin-top: -6px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: #444;
+    border-radius: 2px;
+}
+
+input[type=range]:focus::-webkit-slider-runnable-track {
+    background: #555;
+}
+
+/* Active Slider Track (Simulated with JS usually, but simple CSS for now) */
+/* For a more advanced look, we'd need JS to update background-size or use a wrapper */
+
+/* Card Styles */
+.card {
+    background-color: #1a1d21 !important;
+    border-color: #2c3036 !important;
+}
+
+/* Loop Buttons */
+#btnLoopToggle.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
