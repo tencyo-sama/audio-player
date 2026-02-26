@@ -1,482 +1,459 @@
-/**
- * Web Audio Player - Wide Range Manual Sync
- */
+// --- app.js (Zero-base rebuild) ---
 
-// --- Debug Logging ---
-function log(msg) {
-    // console.log(msg); 
-}
-
-// --- Global Variables ---
-let audioCtx;
-let soundTouch;
-let pitchShifter;
-let audioBuffer;
-let isPlaying = false;
-let isVideo = false;
+let audioCtx = null;
+let audioBuffer = null;
+let pitchShifter = null;
 let dummySource = null;
 
-// Playback State
-let loopStart = null;
-let loopEnd = null;
+// State
+let isPlaying = false;
+let isVideo = false;
+let currentTempo = 1.0;
+let currentPitch = 0; // semitones
+let manualSyncOffset = 0.0; // seconds
 
-// Loop Mode
+// Loop State
 const LOOP_OFF = 0;
 const LOOP_ALL = 1;
 const LOOP_AB = 2;
 let loopMode = LOOP_OFF;
+let loopStart = null;
+let loopEnd = null;
 
-// Sync Constants
-// 固定遅延補正を廃止します。全てスライダー（manualOffset）で調整します。
-const BUFFER_SIZE = 4096;
-let SAMPLE_RATE = 44100;
+// Animation Frame ID
+let rAF_ID = null;
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
 const videoPlayer = document.getElementById('videoPlayer');
 const audioVisualizer = document.getElementById('audioVisualizer');
-const btnPlayPause = document.getElementById('btnPlayPause');
-const btnStop = document.getElementById('btnStop');
-const seekBar = document.getElementById('seekBar');
-const currentTimeEl = document.getElementById('currentTime');
-const totalTimeEl = document.getElementById('totalTime');
-const btnFullscreen = document.getElementById('btnFullscreen');
+const noFileMsg = document.getElementById('noFileMsg');
 
-// Loop UI
-const btnLoopToggle = document.getElementById('btnLoopToggle');
-const iconLoop = document.getElementById('iconLoop');
+// Controls
+const seekSlider = document.getElementById('seekSlider');
+const timeCurrent = document.getElementById('timeCurrent');
+const timeTotal = document.getElementById('timeTotal');
+
+// Buttons
+const btnPlayPause = document.getElementById('btnPlayPause');
+const iconPlay = document.getElementById('iconPlay');
+const btnSkipBack = document.getElementById('btnSkipBack');
+const btnSkipFwd = document.getElementById('btnSkipFwd');
+
+// Loop Buttons
+const btnLoopMode = document.getElementById('btnLoopMode');
+const iconLoopMode = document.getElementById('iconLoopMode');
 const btnSetA = document.getElementById('btnSetA');
 const btnSetB = document.getElementById('btnSetB');
 const btnClearLoop = document.getElementById('btnClearLoop');
-const loopInfoOverlay = document.getElementById('loopInfoOverlay');
-const loopStartDisplay = document.getElementById('loopStartDisplay');
-const loopEndDisplay = document.getElementById('loopEndDisplay');
+const loopOverlay = document.getElementById('loopOverlay');
+const loopA_Disp = document.getElementById('loopA');
+const loopB_Disp = document.getElementById('loopB');
 
-// Parameters
-let currentTempo = 1.0;
-let currentPitch = 0;
+// Sliders
+const sliderTempo = document.getElementById('sliderTempo');
 const valTempo = document.getElementById('valTempo');
-const valPitch = document.getElementById('valPitch');
+const btnResetTempo = document.getElementById('btnResetTempo');
 
-// Sync UI
+const sliderPitch = document.getElementById('sliderPitch');
+const valPitch = document.getElementById('valPitch');
+const btnResetPitch = document.getElementById('btnResetPitch');
+
 const sliderSync = document.getElementById('sliderSync');
 const valSync = document.getElementById('valSync');
-const toggleSyncCorrection = document.getElementById('toggleSyncCorrection');
-const btnSyncFineDown = document.getElementById('btnSyncFineDown');
-const btnSyncFineUp = document.getElementById('btnSyncFineUp');
-const btnSyncBigDown = document.getElementById('btnSyncBigDown');
-const btnSyncBigUp = document.getElementById('btnSyncBigUp');
+const btnResetSync = document.getElementById('btnResetSync');
+const btnSyncMinus = document.getElementById('btnSyncMinus');
+const btnSyncPlus = document.getElementById('btnSyncPlus');
 
-// --- Initialization ---
-
+// --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
-    
-    document.body.addEventListener('click', () => {
-        initAudioContext();
-    }, { once: true });
-    
-    fileInput.addEventListener('change', handleFileSelect);
+    // Requires user interaction to start AudioContext
+    document.body.addEventListener('click', initAudioContext, { once: true });
+    document.body.addEventListener('touchstart', initAudioContext, { once: true });
+
+    fileInput.addEventListener('change', handleFileLoad);
+
+    // Playback
     btnPlayPause.addEventListener('click', togglePlay);
-    btnStop.addEventListener('click', stopPlayback);
-    
+    btnSkipBack.addEventListener('click', () => skipTime(-5));
+    btnSkipFwd.addEventListener('click', () => skipTime(5));
+
     // Seek
-    seekBar.addEventListener('input', () => {
-        if (pitchShifter && pitchShifter.duration > 0) {
-            const time = (seekBar.value / 100) * pitchShifter.duration;
-            seekTo(time);
-        }
+    seekSlider.addEventListener('input', (e) => {
+        if (!pitchShifter) return;
+        const perc = parseFloat(e.target.value) / 100;
+        const targetTime = perc * pitchShifter.duration;
+        seekTo(targetTime);
     });
 
-    // Tempo / Pitch Controls
-    document.getElementById('btnTempoReset').addEventListener('click', () => { currentTempo = 1.0; updateParameters(); });
-    document.getElementById('btnTempoDown').addEventListener('click', () => { currentTempo = Math.max(0.5, currentTempo - 0.05); updateParameters(); });
-    document.getElementById('btnTempoUp').addEventListener('click', () => { currentTempo = Math.min(2.0, currentTempo + 0.05); updateParameters(); });
+    // Tempo
+    sliderTempo.addEventListener('input', (e) => setTempo(parseFloat(e.target.value)));
+    btnResetTempo.addEventListener('click', () => setTempo(1.0));
 
-    document.getElementById('btnPitchReset').addEventListener('click', () => { currentPitch = 0; updateParameters(); });
-    document.getElementById('btnPitchDown').addEventListener('click', () => { currentPitch = Math.max(-12, currentPitch - 1); updateParameters(); });
-    document.getElementById('btnPitchUp').addEventListener('click', () => { currentPitch = Math.min(12, currentPitch + 1); updateParameters(); });
+    // Pitch
+    sliderPitch.addEventListener('input', (e) => setPitch(parseInt(e.target.value, 10)));
+    btnResetPitch.addEventListener('click', () => setPitch(0));
 
-    // --- Sync Slider Logic (Wide Range) ---
-    // HTMLで min="-20" max="20" に設定済み
-    const updateSyncVal = (val) => {
-        // 範囲制限
-        let v = parseFloat(val);
-        if (v < -20) v = -20;
-        if (v > 20) v = 20;
-        sliderSync.value = v;
-        updateSyncUI();
-    };
+    // Sync
+    sliderSync.addEventListener('input', (e) => setSyncOffset(parseFloat(e.target.value)));
+    btnResetSync.addEventListener('click', () => setSyncOffset(0.0));
+    btnSyncMinus.addEventListener('click', () => setSyncOffset(manualSyncOffset - 0.05));
+    btnSyncPlus.addEventListener('click', () => setSyncOffset(manualSyncOffset + 0.05));
 
-    sliderSync.addEventListener('input', () => updateSyncUI());
-    
-    // Fine Tune (+- 0.05)
-    btnSyncFineDown.addEventListener('click', () => {
-        let v = parseFloat(sliderSync.value);
-        updateSyncVal((v - 0.05).toFixed(2));
-    });
-    btnSyncFineUp.addEventListener('click', () => {
-        let v = parseFloat(sliderSync.value);
-        updateSyncVal((v + 0.05).toFixed(2));
-    });
-
-    // Big Tune (+- 1.0)
-    btnSyncBigDown.addEventListener('click', () => {
-        let v = parseFloat(sliderSync.value);
-        updateSyncVal((v - 1.0).toFixed(2));
-    });
-    btnSyncBigUp.addEventListener('click', () => {
-        let v = parseFloat(sliderSync.value);
-        updateSyncVal((v + 1.0).toFixed(2));
-    });
-
-    // Loop Buttons
+    // Loop
+    btnLoopMode.addEventListener('click', toggleLoopMode);
     btnSetA.addEventListener('click', () => {
-        if (pitchShifter) {
-            loopStart = pitchShifter.timePlayed;
-            btnSetA.classList.remove('btn-outline-info');
-            btnSetA.classList.add('btn-info');
-            loopStartDisplay.textContent = formatTime(loopStart);
-            updateLoopOverlay();
-            if (loopEnd !== null) setLoopMode(LOOP_AB);
-        }
+        if (!pitchShifter) return;
+        loopStart = pitchShifter.timePlayed;
+        loopA_Disp.textContent = formatTime(loopStart);
+        btnSetA.classList.add('active');
+        checkLoopState();
     });
-
     btnSetB.addEventListener('click', () => {
-        if (pitchShifter) {
-            loopEnd = pitchShifter.timePlayed;
-            btnSetB.classList.remove('btn-outline-info');
-            btnSetB.classList.add('btn-info');
-            loopEndDisplay.textContent = formatTime(loopEnd);
-            updateLoopOverlay();
-            if (loopStart !== null) setLoopMode(LOOP_AB);
-        }
-    });
-
-    btnClearLoop.addEventListener('click', () => {
-        loopStart = null;
-        loopEnd = null;
-        btnSetA.classList.add('btn-outline-info');
-        btnSetA.classList.remove('btn-info');
-        btnSetB.classList.add('btn-outline-info');
-        btnSetB.classList.remove('btn-info');
-        loopStartDisplay.textContent = "--:--";
-        loopEndDisplay.textContent = "--:--";
-        updateLoopOverlay();
-        if (loopMode === LOOP_AB) setLoopMode(LOOP_OFF);
-    });
-    
-    btnLoopToggle.addEventListener('click', () => {
-        let nextMode = loopMode + 1;
-        if (nextMode === LOOP_AB && (loopStart === null || loopEnd === null)) nextMode = LOOP_OFF;
-        else if (nextMode > LOOP_AB) nextMode = LOOP_OFF;
-        setLoopMode(nextMode);
-    });
-
-    // Skips
-    document.getElementById('btnSkipBack').addEventListener('click', () => {
         if (!pitchShifter) return;
-        let t = pitchShifter.timePlayed - 5;
-        if (t < 0) t = 0;
-        seekTo(t);
+        loopEnd = pitchShifter.timePlayed;
+        loopB_Disp.textContent = formatTime(loopEnd);
+        btnSetB.classList.add('active');
+        checkLoopState();
     });
-    
-    document.getElementById('btnSkipFwd').addEventListener('click', () => {
-        if (!pitchShifter) return;
-        let t = pitchShifter.timePlayed + 5;
-        if (t > pitchShifter.duration) t = pitchShifter.duration;
-        seekTo(t);
-    });
-    
-    // Fullscreen
-    btnFullscreen.addEventListener('click', () => {
-        if (!videoPlayer) return;
-        if (videoPlayer.requestFullscreen) videoPlayer.requestFullscreen();
-        else if (videoPlayer.webkitRequestFullscreen) videoPlayer.webkitRequestFullscreen();
-        else if (videoPlayer.msRequestFullscreen) videoPlayer.msRequestFullscreen();
-    });
+    btnClearLoop.addEventListener('click', clearABLoop);
 });
 
 function initAudioContext() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        SAMPLE_RATE = audioCtx.sampleRate;
     } else if (audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 }
 
 // --- File Handling ---
-
-async function handleFileSelect(e) {
+async function handleFileLoad(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     initAudioContext();
-    stopPlayback();
-    
-    // Reset Sync Slider on new file load to 0
-    // Or keep it? Let's reset it to be safe.
-    sliderSync.value = 0;
-    updateSyncUI();
+    stopPlayback(); // Stop any current playback
 
-    const fileURL = URL.createObjectURL(file);
+    noFileMsg.classList.add('d-none');
+
+    // Check if video
     isVideo = file.type.startsWith('video');
+    const fileUrl = URL.createObjectURL(file);
 
     if (isVideo) {
-        videoPlayer.src = fileURL;
+        videoPlayer.src = fileUrl;
+        videoPlayer.muted = true; // Audio is handled by WebAudio independently
         videoPlayer.classList.remove('d-none');
         audioVisualizer.classList.add('d-none');
-        btnFullscreen.classList.remove('d-none');
-        
-        // ECHO FIX
-        videoPlayer.muted = true;
-        videoPlayer.volume = 0;
-        videoPlayer.playsInline = true;
-        
         videoPlayer.load();
     } else {
         videoPlayer.classList.add('d-none');
         audioVisualizer.classList.remove('d-none');
-        btnFullscreen.classList.add('d-none');
     }
 
+    // Decode Audio Data
     try {
         const arrayBuffer = await file.arrayBuffer();
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        initPitchShifter();
-        totalTimeEl.textContent = formatTime(audioBuffer.duration);
+
+        setupPitchShifter();
+
+        timeTotal.textContent = formatTime(audioBuffer.duration);
+        seekSlider.disabled = false;
         btnPlayPause.disabled = false;
-        setLoopMode(LOOP_OFF);
+        clearABLoop();
+        setLoopMode(LOOP_OFF); // Reset loop mode on new file
+
     } catch (err) {
-        console.error('Error decoding audio:', err);
-        alert('Error loading file.');
+        alert("Failed to decode audio data. It might be unsupported or corrupted.");
+        console.error(err);
     }
 }
 
-function initPitchShifter() {
+function setupPitchShifter() {
     if (pitchShifter) {
         pitchShifter.disconnect();
         pitchShifter = null;
     }
 
-    pitchShifter = new PitchShifter(audioCtx, audioBuffer, BUFFER_SIZE, () => {
-        // onEnd
+    // Initialize from soundtouch.js
+    // bufferSize: 4096 is a good balance of latency and performance
+    pitchShifter = new PitchShifter(audioCtx, audioBuffer, 4096, () => {
+        // onEnd callback (track finished)
         if (loopMode === LOOP_ALL) {
             seekTo(0);
         } else if (loopMode === LOOP_AB && loopStart !== null) {
             seekTo(loopStart);
         } else {
-            pause();
+            pausePlayback();
             seekTo(0);
         }
     });
 
-    pitchShifter.on('play', (detail) => {
-        if (!isPlaying) return;
-        updateUI(detail);
-        checkLoop(detail.timePlayed);
-        
-        if (isVideo) {
-            syncVideo(detail.timePlayed);
-        }
-    });
-
-    updateParameters();
+    // Apply current slider settings immediately
+    pitchShifter.tempo = currentTempo;
+    pitchShifter.pitchSemitones = currentPitch;
 }
 
-// --- Loop Logic ---
-function setLoopMode(mode) {
-    loopMode = mode;
-    btnLoopToggle.classList.remove('btn-outline-secondary', 'btn-outline-light', 'btn-primary', 'active');
-    iconLoop.classList.remove('bi-repeat', 'bi-repeat-1', 'bi-arrow-repeat');
 
-    switch (mode) {
-        case LOOP_OFF:
-            btnLoopToggle.classList.add('btn-outline-secondary');
-            iconLoop.classList.add('bi-repeat');
-            break;
-        case LOOP_ALL:
-            btnLoopToggle.classList.add('btn-primary');
-            iconLoop.classList.add('bi-repeat');
-            break;
-        case LOOP_AB:
-            btnLoopToggle.classList.add('btn-info');
-            iconLoop.classList.add('bi-arrow-repeat');
-            break;
-    }
-}
-
-function updateLoopOverlay() {
-    if (loopStart !== null || loopEnd !== null) {
-        loopInfoOverlay.classList.remove('d-none');
-    } else {
-        loopInfoOverlay.classList.add('d-none');
-    }
-}
-
-function checkLoop(time) {
-    if (loopMode === LOOP_AB && loopStart !== null && loopEnd !== null) {
-        if (time >= loopEnd) {
-            seekTo(loopStart);
-        }
-    }
-}
-
-// --- Playback ---
-
-function togglePlay() {
-    if (!audioBuffer) return;
-    if (isPlaying) pause();
-    else play();
-}
-
-async function play() {
+// --- Playback Control ---
+async function togglePlay() {
     if (!pitchShifter) return;
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
-    
+    if (isPlaying) {
+        pausePlayback();
+    } else {
+        await startPlayback();
+    }
+}
+
+async function startPlayback() {
+    if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+    }
+
     pitchShifter.connect(audioCtx.destination);
-    
+
+    // Web Audio limitation: ScriptProcessorNode sometimes stalls in some browsers
+    // if there are no active input nodes. 
+    // We bind a silent oscillator to ensure the graph keeps rendering.
     if (!dummySource) {
         dummySource = audioCtx.createOscillator();
-        dummySource.type = 'square';
-        dummySource.frequency.value = 0; 
         const silentGain = audioCtx.createGain();
         silentGain.gain.value = 0;
         dummySource.connect(silentGain);
-        silentGain.connect(pitchShifter.node); 
+        silentGain.connect(pitchShifter.node);
         dummySource.start();
     }
-    
+
     if (isVideo) {
-        videoPlayer.muted = true;
-        videoPlayer.volume = 0;
         videoPlayer.playbackRate = currentTempo;
-        videoPlayer.play().catch(e => console.log(e));
+        videoPlayer.play().catch(e => console.warn(e));
     }
 
     isPlaying = true;
-    updatePlayButton();
-    startVisualizer();
+    iconPlay.classList.replace('bi-play-fill', 'bi-pause-fill');
+    audioVisualizer.classList.add('is-playing');
+
+    // Start Master Sync & UI render loop
+    if (rAF_ID) cancelAnimationFrame(rAF_ID);
+    rAF_ID = requestAnimationFrame(masterSyncLoop);
 }
 
-function pause() {
-    if (pitchShifter) pitchShifter.disconnect();
+function pausePlayback() {
+    if (pitchShifter) {
+        pitchShifter.disconnect();
+    }
     if (dummySource) {
         dummySource.stop();
         dummySource.disconnect();
         dummySource = null;
     }
-    if (isVideo) videoPlayer.pause();
+    if (isVideo) {
+        videoPlayer.pause();
+    }
+
     isPlaying = false;
-    updatePlayButton();
-    stopVisualizer();
+    iconPlay.classList.replace('bi-pause-fill', 'bi-play-fill');
+    audioVisualizer.classList.remove('is-playing');
+
+    if (rAF_ID) {
+        cancelAnimationFrame(rAF_ID);
+        rAF_ID = null;
+    }
 }
 
 function stopPlayback() {
-    pause();
+    pausePlayback();
     if (pitchShifter) {
-        pitchShifter.percentagePlayed = 0;
-        updateUI({ timePlayed: 0, percentagePlayed: 0 });
+        seekTo(0);
     }
-    if (isVideo) videoPlayer.currentTime = 0;
 }
 
-function seekTo(time) {
+function seekTo(timeInSeconds) {
     if (!pitchShifter) return;
-    
-    const percentage = time / pitchShifter.duration;
-    pitchShifter.percentagePlayed = percentage;
-    
+
+    // clamp bounds
+    let t = Math.max(0, Math.min(timeInSeconds, pitchShifter.duration));
+    pitchShifter.percentagePlayed = t / pitchShifter.duration;
+
     if (isVideo) {
-        const manualOffset = parseFloat(sliderSync.value);
-        // Video Target = Audio Read Head + Manual Offset
-        const targetVidTime = Math.max(0, time + manualOffset);
-        videoPlayer.currentTime = targetVidTime;
+        const targetVideoTime = t + manualSyncOffset;
+        videoPlayer.currentTime = Math.max(0, targetVideoTime);
     }
-    
-    if (!isPlaying) {
-        updateUI({ timePlayed: time, percentagePlayed: percentage * 100 });
-    }
+
+    updateUI(t);
 }
 
-// --- Sync Logic (Simplified & Wide Range) ---
+function skipTime(delta) {
+    if (!pitchShifter) return;
+    seekTo(pitchShifter.timePlayed + delta);
+}
 
-function syncVideo(audioReadTime) {
-    if (!isVideo || !toggleSyncCorrection.checked) return;
+// --- Master Clock Sync Loop ---
+// Ensures Video exactly syncs with Audio, resolving Guitar practice frustrations.
+function masterSyncLoop() {
+    if (!isPlaying || !pitchShifter) return;
 
-    const manualOffset = parseFloat(sliderSync.value);
-    
-    // 目標時間 = 音声読み込み位置 + スライダー補正値
-    // 固定のBASE_LATENCYは排除しました。スライダーが全てです。
-    const targetTime = audioReadTime + manualOffset;
-    
-    const diff = videoPlayer.currentTime - targetTime;
+    const audioTime = pitchShifter.timePlayed;
 
-    // 0.1秒以上のズレで補正
-    if (Math.abs(diff) > 0.1) {
-        videoPlayer.currentTime = Math.max(0, targetTime);
-        if (videoPlayer.playbackRate !== currentTempo) {
+    // 1. Check A-B Loop boundaries
+    checkABLoop(audioTime);
+
+    // 2. Sync Video to Audio (Audio is Master)
+    if (isVideo) {
+        const targetVideoTime = audioTime + manualSyncOffset;
+        const diff = videoPlayer.currentTime - targetVideoTime;
+
+        // Ensure video playback rate continually matches tempo to prevent micro-drifts
+        if (Math.abs(videoPlayer.playbackRate - currentTempo) > 0.01) {
             videoPlayer.playbackRate = currentTempo;
         }
-    }
-}
 
-// --- Visualizer & Utils ---
-
-let visualizerInterval;
-const visualizerIcon = document.querySelector('#audioVisualizer i');
-
-function startVisualizer() {
-    stopVisualizer();
-    visualizerIcon.style.transition = 'transform 0.1s';
-    visualizerInterval = setInterval(() => {
-        if (isPlaying) {
-            const scale = 1 + Math.random() * 0.2;
-            visualizerIcon.style.transform = `scale(${scale})`;
-            visualizerIcon.style.color = '#667eea';
+        // If drift exceeds 100ms (0.1s), force correct video to follow audio.
+        // This implicitly handles Loop Crossovers and intense Tempo shifts automatically!
+        if (Math.abs(diff) > 0.1) {
+            videoPlayer.currentTime = Math.max(0, targetVideoTime);
         }
-    }, 100);
+    }
+
+    // 3. Update Status UI
+    updateUI(audioTime);
+
+    rAF_ID = requestAnimationFrame(masterSyncLoop);
 }
 
-function stopVisualizer() {
-    clearInterval(visualizerInterval);
-    visualizerIcon.style.transform = 'scale(1)';
-    visualizerIcon.style.color = '';
-}
-
-function updateUI(detail) {
-    currentTimeEl.textContent = formatTime(detail.timePlayed);
-    seekBar.value = detail.percentagePlayed;
-}
-
-function updatePlayButton() {
-    const icon = btnPlayPause.querySelector('i');
-    if (isPlaying) {
-        icon.classList.remove('bi-play-fill');
-        icon.classList.add('bi-pause-fill');
-    } else {
-        icon.classList.remove('bi-pause-fill');
-        icon.classList.add('bi-play-fill');
+function updateUI(timeInSeconds) {
+    timeCurrent.textContent = formatTime(timeInSeconds);
+    if (!seekSlider.matches(':active')) { // only update slider if user isn't dragging it
+        seekSlider.value = pitchShifter ? (timeInSeconds / pitchShifter.duration) * 100 : 0;
     }
 }
 
-function updateParameters() {
-    if (!pitchShifter) return;
-    pitchShifter.tempo = currentTempo;
-    pitchShifter.pitchSemitones = currentPitch;
-    if (isVideo) videoPlayer.playbackRate = currentTempo;
+// --- A-B Loop Logic ---
+function toggleLoopMode() {
+    loopMode = (loopMode + 1) % 3;
+    setLoopMode(loopMode);
+}
+
+function setLoopMode(mode) {
+    loopMode = mode;
+    iconLoopMode.className = 'bi'; // reset
+    btnLoopMode.classList.remove('btn-outline-secondary', 'btn-primary', 'btn-info', 'active');
+
+    if (mode === LOOP_OFF) {
+        iconLoopMode.classList.add('bi-repeat');
+        btnLoopMode.classList.add('btn-outline-secondary');
+    } else if (mode === LOOP_ALL) {
+        iconLoopMode.classList.add('bi-repeat');
+        btnLoopMode.classList.add('btn-primary');
+    } else if (mode === LOOP_AB) {
+        iconLoopMode.classList.add('bi-repeat-1');
+        btnLoopMode.classList.add('btn-info', 'active');
+
+        // Failsafe: if enabling AB but not set, guess reasonable defaults
+        if (loopStart === null) loopStart = 0;
+        if (loopEnd === null && pitchShifter) loopEnd = pitchShifter.duration;
+        updateLoopOverlay();
+    }
+}
+
+function checkABLoop(currentTime) {
+    if (loopMode === LOOP_AB && loopStart !== null && loopEnd !== null) {
+        // Trigger loop reset if we hit or exceed the B marker
+        if (currentTime >= loopEnd) {
+            seekTo(loopStart);
+        }
+    }
+}
+
+function checkLoopState() {
+    if (loopStart !== null && loopEnd !== null) {
+        // Validate A < B, swap if inverted
+        if (loopStart >= loopEnd) {
+            let temp = loopStart;
+            loopStart = loopEnd;
+            loopEnd = temp;
+            loopA_Disp.textContent = formatTime(loopStart);
+            loopB_Disp.textContent = formatTime(loopEnd);
+        }
+        btnClearLoop.disabled = false;
+        loopOverlay.classList.remove('d-none');
+        setLoopMode(LOOP_AB); // Auto-activate AB loop
+    } else {
+        btnClearLoop.disabled = true;
+        loopOverlay.classList.add('d-none');
+    }
+}
+
+function clearABLoop() {
+    loopStart = null;
+    loopEnd = null;
+    btnSetA.classList.remove('active');
+    btnSetB.classList.remove('active');
+    loopA_Disp.textContent = '--:--';
+    loopB_Disp.textContent = '--:--';
+    btnClearLoop.disabled = true;
+    loopOverlay.classList.add('d-none');
+    if (loopMode === LOOP_AB) {
+        setLoopMode(LOOP_OFF);
+    }
+}
+
+function updateLoopOverlay() {
+    if (loopMode === LOOP_AB && loopStart !== null && loopEnd !== null) {
+        loopA_Disp.textContent = formatTime(loopStart);
+        loopB_Disp.textContent = formatTime(loopEnd);
+        loopOverlay.classList.remove('d-none');
+    }
+}
+
+// --- Parameter Adjustments ---
+function setTempo(val) {
+    // Clamp 0.5 - 2.0
+    currentTempo = Math.max(0.5, Math.min(2.0, val));
+    sliderTempo.value = currentTempo;
     valTempo.textContent = Math.round(currentTempo * 100) + '%';
-    valPitch.textContent = (currentPitch > 0 ? '+' : '') + currentPitch;
+
+    // Indepnedent Control via soundtouch.js
+    if (pitchShifter) {
+        pitchShifter.tempo = currentTempo;
+    }
+    // Video rate sync is implicitly handled in masterSyncLoop
 }
 
-function updateSyncUI() {
-    const val = parseFloat(sliderSync.value).toFixed(2);
-    valSync.textContent = (val > 0 ? '+' : '') + val + 's';
+function setPitch(st) {
+    // Clamp -12 to 12
+    currentPitch = Math.max(-12, Math.min(12, st));
+    sliderPitch.value = currentPitch;
+    valPitch.textContent = (currentPitch > 0 ? '+' : '') + currentPitch + ' st';
+
+    // Indepnedent Control via soundtouch.js
+    if (pitchShifter) {
+        pitchShifter.pitchSemitones = currentPitch;
+    }
 }
 
-function formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+function setSyncOffset(sec) {
+    // Clamp -1.0 to 1.0 seconds range
+    manualSyncOffset = Math.max(-1.0, Math.min(1.0, sec));
+    sliderSync.value = manualSyncOffset.toFixed(2);
+    valSync.textContent = (manualSyncOffset >= 0 ? '+' : '') + manualSyncOffset.toFixed(2) + 's';
+
+    // Apply immediate sync correction if already playing
+    if (isPlaying && isVideo && pitchShifter) {
+        const targetVideoTime = pitchShifter.timePlayed + manualSyncOffset;
+        videoPlayer.currentTime = Math.max(0, targetVideoTime);
+    }
+}
+
+// --- Utils ---
+function formatTime(totalSeconds) {
+    if (isNaN(totalSeconds) || totalSeconds < 0) return '00:00.0';
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    const sInt = Math.floor(s);
+    const ms = Math.floor((s - sInt) * 10); // 1 decimal place format
+
+    return `${m.toString().padStart(2, '0')}:${sInt.toString().padStart(2, '0')}.${ms}`;
 }
