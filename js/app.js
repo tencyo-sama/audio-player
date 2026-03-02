@@ -280,6 +280,7 @@ function seekTo(timeInSeconds) {
     if (isVideo) {
         const targetVideoTime = t + manualSyncOffset;
         videoPlayer.currentTime = Math.max(0, targetVideoTime);
+        forceSyncNextFrame = true; // Added
     }
 
     updateUI(t);
@@ -290,35 +291,57 @@ function skipTime(delta) {
     seekTo(pitchShifter.timePlayed + delta);
 }
 
+// --- Advanced Timing & Sync State ---
+let lastAudioPos = 0;
+let lastAudioUpdatePerf = 0;
+let forceSyncNextFrame = false;
+
 // --- Master Clock Sync Loop ---
 // Ensures Video exactly syncs with Audio, resolving Guitar practice frustrations.
 function masterSyncLoop() {
     if (!isPlaying || !pitchShifter) return;
 
-    const audioTime = pitchShifter.timePlayed;
+    // 1. Get Smoothed Audio Time (Interpolation)
+    // Audio clock updates in chunks (about every ~93ms). 
+    // We interpolate between updates using performance.now() for 60fps smoothness.
+    const rawAudioTime = pitchShifter.timePlayed;
+    const now = performance.now();
 
-    // 1. Check A-B Loop boundaries
-    checkABLoop(audioTime);
+    if (rawAudioTime !== lastAudioPos) {
+        lastAudioPos = rawAudioTime;
+        lastAudioUpdatePerf = now;
+    }
 
-    // 2. Sync Video to Audio (Audio is Master)
+    // Calculate interpolated time: time since last chunk update * current speed
+    const timeSinceUpdate = (now - lastAudioUpdatePerf) / 1000;
+    const smoothAudioTime = rawAudioTime + (timeSinceUpdate * currentTempo);
+
+    // 2. Check A-B Loop boundaries (use smooth time for precise triggers)
+    checkABLoop(smoothAudioTime);
+
+    // 3. Sync Video to Audio (Audio is Master)
     if (isVideo) {
-        const targetVideoTime = audioTime + manualSyncOffset;
+        const targetVideoTime = smoothAudioTime + manualSyncOffset;
         const diff = videoPlayer.currentTime - targetVideoTime;
+        const absDiff = Math.abs(diff);
 
-        // Ensure video playback rate continually matches tempo to prevent micro-drifts
+        // Continuous playback rate alignment
         if (Math.abs(videoPlayer.playbackRate - currentTempo) > 0.01) {
             videoPlayer.playbackRate = currentTempo;
         }
 
-        // If drift exceeds 100ms (0.1s), force correct video to follow audio.
-        // This implicitly handles Loop Crossovers and intense Tempo shifts automatically!
-        if (Math.abs(diff) > 0.1) {
+        // SYNC STRATEGY:
+        // - If forceSyncNextFrame is true (loops, seeks), sync immediately.
+        // - If drift > 0.3s (relaxed threshold), force sync. 
+        // - Otherwise, let the video's natural clock keep things smooth.
+        if (forceSyncNextFrame || absDiff > 0.3) {
             videoPlayer.currentTime = Math.max(0, targetVideoTime);
+            forceSyncNextFrame = false;
         }
     }
 
-    // 3. Update Status UI
-    updateUI(audioTime);
+    // 4. Update Status UI
+    updateUI(smoothAudioTime);
 
     rAF_ID = requestAnimationFrame(masterSyncLoop);
 }
@@ -363,6 +386,7 @@ function checkABLoop(currentTime) {
         // Trigger loop reset if we hit or exceed the B marker
         if (currentTime >= loopEnd) {
             seekTo(loopStart);
+            forceSyncNextFrame = true; // Added
         }
     }
 }
