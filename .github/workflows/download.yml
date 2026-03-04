@@ -2,11 +2,11 @@ name: Secure Video Manager
 
 on:
   issues:
-    types: [opened]
+    # opened（新規）に加えて edited（編集）もトリガーにする
+    types: [opened, edited]
 
 jobs:
   manage_video:
-    # 【重要】実行者が「自分（リポジトリオーナー）」の時だけ動く設定
     if: github.event.issue.user.login == github.repository_owner
     runs-on: ubuntu-latest
     permissions:
@@ -16,38 +16,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- 削除処理 (Issueタイトルが "delete: " で始まる場合) ---
-      - name: Delete Video
-        if: startsWith(github.event.issue.title, 'delete:')
-        run: |
-          FILENAME=$(echo "${{ github.event.issue.title }}" | sed 's/delete: //')
-          git rm "videos/$FILENAME" || echo "File not found"
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "Remove video: $FILENAME"
-          git push
-          echo "DELETED=true" >> $GITHUB_ENV
-
-      # --- ダウンロード処理 (Issueタイトルが URL の場合) ---
-      - name: Download Video
-        if: contains(github.event.issue.title, 'https')
+      - name: Install yt-dlp
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
           sudo chmod a+rx /usr/local/bin/yt-dlp
+
+      - name: Process Video
+        run: |
+          # フォルダがなければ作成
           mkdir -p videos
-          # ファイル名を短く管理しやすくするため title のみ指定
-          yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-                 --merge-output-format mp4 \
-                 -o "videos/%(title)s.%(ext)s" \
-                 "${{ github.event.issue.title }}"
           
+          TITLE="${{ github.event.issue.title }}"
+          
+          if [[ "$TITLE" == https* ]]; then
+            echo "URL検知: ダウンロードを開始します"
+            yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+                   --merge-output-format mp4 \
+                   -o "videos/%(title)s.%(ext)s" \
+                   "$TITLE"
+          elif [[ "$TITLE" == delete:* ]]; then
+            FILENAME=$(echo "$TITLE" | sed 's/delete: //')
+            echo "削除検知: $FILENAME を削除します"
+            git rm "videos/$FILENAME" || echo "ファイルが見つかりません"
+          fi
+
+      - name: Commit and Push
+        run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # videosフォルダの中身をすべて追加（フォルダ自体もこれで認識される）
           git add videos/
-          git commit -m "Add new practice video"
+          # 変更があればコミット
+          git diff --staged --quiet || git commit -m "Update video collection"
           git push
 
-      - name: Close Issue
-        run: gh issue close ${{ github.event.issue.number }} --comment "処理が完了しました。"
+      - name: Success Comment
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "処理が完了しました！ (実行時刻: $(date +'%H:%M:%S'))"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
