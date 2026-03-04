@@ -6,8 +6,8 @@ Hosted on GitHub Pages: [https://tencyo-sama.github.io/audio-player/](https://te
 ## Features
 
 *   **Independent Tempo & Pitch Control**:
-    *   Adjust Tempo (50% - 200%) without affecting pitch.
-    *   Adjust Pitch (-12 to +12 semitones) without affecting tempo.
+    *   Adjust Tempo (50% - 120%) without affecting pitch.
+    *   Adjust Pitch (-4 to +4 semitones) without affecting tempo.
     *   Powered by a custom integration of the SoundTouchJS library.
 *   **Video Support**:
     *   Plays MP4 files with precise Audio/Video synchronization.
