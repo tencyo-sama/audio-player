@@ -238,37 +238,49 @@ async function loadVideoList() {
 
 // --- Fullscreen Handling (Container Expand Approach) ---
 // Using HTML5 Fullscreen API on the media container to keep controls logic fully alive underneath.
-function toggleFullscreen() {
+async function toggleFullscreen() {
     if (!document.fullscreenElement) {
         if (mediaContainer.requestFullscreen) {
-            mediaContainer.requestFullscreen();
+            await mediaContainer.requestFullscreen();
         } else if (mediaContainer.webkitRequestFullscreen) { /* Safari */
-            mediaContainer.webkitRequestFullscreen();
+            await mediaContainer.webkitRequestFullscreen();
         } else if (mediaContainer.msRequestFullscreen) { /* IE11 */
-            mediaContainer.msRequestFullscreen();
+            await mediaContainer.msRequestFullscreen();
         }
     } else {
         if (document.exitFullscreen) {
-            document.exitFullscreen();
+            await document.exitFullscreen();
         } else if (document.webkitExitFullscreen) { /* Safari */
-            document.webkitExitFullscreen();
+            await document.webkitExitFullscreen();
         } else if (document.msExitFullscreen) { /* IE11 */
-            document.msExitFullscreen();
+            await document.msExitFullscreen();
         }
     }
 }
 
-// Update icon based on fullscreen state
-document.addEventListener('fullscreenchange', updateFullscreenIcon);
-document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
-document.addEventListener('msfullscreenchange', updateFullscreenIcon);
+// Update icon and screen orientation based on fullscreen state
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('msfullscreenchange', handleFullscreenChange);
 
-function updateFullscreenIcon() {
+async function handleFullscreenChange() {
     const icon = btnFullscreenToggle.querySelector('i');
     if (document.fullscreenElement) {
         icon.classList.replace('bi-arrows-fullscreen', 'bi-fullscreen-exit');
+        // Lock screen to landscape if supported
+        if (screen.orientation && screen.orientation.lock) {
+            try {
+                await screen.orientation.lock('landscape');
+            } catch (err) {
+                console.warn('Screen orientation lock failed or not supported:', err);
+            }
+        }
     } else {
         icon.classList.replace('bi-fullscreen-exit', 'bi-arrows-fullscreen');
+        // Unlock screen orientation
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
     }
 }
 
