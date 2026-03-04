@@ -1,0 +1,49 @@
+import subprocess
+import sys
+import os
+import json
+
+def run_command(command):
+    print(f"実行中: {command}")
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return result.returncode == 0
+
+def update_video_list(video_dir, json_file):
+    # videosフォルダ内のmp4ファイルを探してリスト化する
+    files = [f for f in os.listdir(video_dir) if f.endswith('.mp4')]
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(files, f, ensure_ascii=False, indent=2)
+    print(f"リストを更新しました: {json_file}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("使い方: uv run python sync_video.py [URL]")
+        return
+
+    url = sys.argv[1]
+    video_dir = "videos"
+    json_file = "video_list.json" # リストファイル
+    
+    # 1. フォルダ準備
+    os.makedirs(video_dir, exist_ok=True)
+
+    # 2. 動画のダウンロード
+    print("--- ダウンロード開始 ---")
+    dl_cmd = f'uv run yt-dlp -f "best[ext=mp4][height<=720]" -o "{video_dir}/%(title)s.%(ext)s" {url}'
+    if not run_command(dl_cmd):
+        print("ダウンロードに失敗しました。")
+        return
+
+    # 3. リストを自動更新
+    update_video_list(video_dir, json_file)
+
+    # 4. GitHubへ同期
+    print("--- GitHubへ同期中 ---")
+    run_command(f"git add {video_dir}/ {json_file}")
+    run_command('git commit -m "Update video and list"')
+    run_command("git push")
+
+    print("\n完了！スマホでアクセスして確認してください。")
+
+if __name__ == "__main__":
+    main()
