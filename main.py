@@ -29,9 +29,10 @@ def main():
 
     # 2. 動画のダウンロード
     print("--- ダウンロード開始 ---")
-    dl_cmd = f'uv run yt-dlp -f "best[ext=mp4][height<=720]" -o "{video_dir}/%(title)s.%(ext)s" {url}'
+    # GitHubのファイルサイズ制限(100MB)を回避するため、95MB以下に制限し解像度も720を上限とする
+    dl_cmd = f'uv run yt-dlp --max-filesize 95m -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best" --merge-output-format mp4 -o "{video_dir}/%(title)s.%(ext)s" {url}'
     if not run_command(dl_cmd):
-        print("ダウンロードに失敗しました。")
+        print("ダウンロードに失敗しました。(容量が大きすぎるか、動画が存在しません)")
         return
 
     # 3. リストを自動更新

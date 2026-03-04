@@ -17,9 +17,9 @@ body {
 /* Main Container: take up remaining space minus controls */
 #mediaContainer {
     margin-top: var(--navbar-height);
-    /* By default on mobile, controls might take up to 60vh, 
+    /* By default on mobile, controls might take up to 45vh, 
        we'll calc based on standard viewport height (100dvh) */
-    height: calc(100dvh - var(--navbar-height) - 340px); 
+    height: calc(100dvh - var(--navbar-height) - 220px); 
     min-height: 200px;
     object-fit: contain;
 }
@@ -44,6 +44,12 @@ video {
     width: 64px;
     height: 64px;
     font-size: 2rem;
+}
+
+.play-btn-sm {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
 }
 
 .control-btn {

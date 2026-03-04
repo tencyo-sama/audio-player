@@ -33,7 +33,6 @@ const btnFullscreenToggle = document.getElementById('btnFullscreenToggle');
 const mediaContainer = document.getElementById('mediaContainer');
 
 // Controls
-const seekSlider = document.getElementById('seekSlider');
 const timeCurrent = document.getElementById('timeCurrent');
 const timeTotal = document.getElementById('timeTotal');
 
@@ -53,15 +52,16 @@ const loopOverlay = document.getElementById('loopOverlay');
 const loopA_Disp = document.getElementById('loopA');
 const loopB_Disp = document.getElementById('loopB');
 
-// Sliders
-const sliderTempo = document.getElementById('sliderTempo');
+// Buttons: Tempo & Pitch
+const btnTempoDown = document.getElementById('btnTempoDown');
+const btnTempoUp = document.getElementById('btnTempoUp');
 const valTempo = document.getElementById('valTempo');
-const btnResetTempo = document.getElementById('btnResetTempo');
 
-const sliderPitch = document.getElementById('sliderPitch');
+const btnPitchDown = document.getElementById('btnPitchDown');
+const btnPitchUp = document.getElementById('btnPitchUp');
 const valPitch = document.getElementById('valPitch');
-const btnResetPitch = document.getElementById('btnResetPitch');
 
+// Sync Slider
 const sliderSync = document.getElementById('sliderSync');
 const valSync = document.getElementById('valSync');
 const btnResetSync = document.getElementById('btnResetSync');
@@ -87,21 +87,20 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSkipBack.addEventListener('click', () => skipTime(-5));
     btnSkipFwd.addEventListener('click', () => skipTime(5));
 
-    // Seek
-    seekSlider.addEventListener('input', (e) => {
-        if (!pitchShifter) return;
-        const perc = parseFloat(e.target.value) / 100;
-        const targetTime = perc * pitchShifter.duration;
-        seekTo(targetTime);
+    // Fullscreen video tap-to-pause
+    videoPlayer.addEventListener('click', () => {
+        if (document.fullscreenElement === mediaContainer) {
+            togglePlay();
+        }
     });
 
     // Tempo
-    sliderTempo.addEventListener('input', (e) => setTempo(parseFloat(e.target.value)));
-    btnResetTempo.addEventListener('click', () => setTempo(1.0));
+    btnTempoDown.addEventListener('click', () => setTempo(currentTempo - 0.05));
+    btnTempoUp.addEventListener('click', () => setTempo(currentTempo + 0.05));
 
     // Pitch
-    sliderPitch.addEventListener('input', (e) => setPitch(parseInt(e.target.value, 10)));
-    btnResetPitch.addEventListener('click', () => setPitch(0));
+    btnPitchDown.addEventListener('click', () => setPitch(currentPitch - 1));
+    btnPitchUp.addEventListener('click', () => setPitch(currentPitch + 1));
 
     // Sync
     sliderSync.addEventListener('input', (e) => setSyncOffset(parseFloat(e.target.value)));
@@ -213,7 +212,6 @@ async function loadAudioData(arrayBuffer) {
     setupPitchShifter();
 
     timeTotal.textContent = formatTime(audioBuffer.duration);
-    seekSlider.disabled = false;
     btnPlayPause.disabled = false;
     clearABLoop();
     setLoopMode(LOOP_OFF);
@@ -462,9 +460,6 @@ function masterSyncLoop() {
 
 function updateUI(timeInSeconds) {
     timeCurrent.textContent = formatTime(timeInSeconds);
-    if (!seekSlider.matches(':active')) { // only update slider if user isn't dragging it
-        seekSlider.value = pitchShifter ? (timeInSeconds / pitchShifter.duration) * 100 : 0;
-    }
 }
 
 // --- A-B Loop Logic ---
@@ -550,7 +545,6 @@ function updateLoopOverlay() {
 function setTempo(val) {
     // Clamp 0.5 - 1.2
     currentTempo = Math.max(0.5, Math.min(1.2, val));
-    sliderTempo.value = currentTempo;
     valTempo.textContent = Math.round(currentTempo * 100) + '%';
 
     // Indepnedent Control via soundtouch.js
@@ -563,7 +557,6 @@ function setTempo(val) {
 function setPitch(st) {
     // Clamp -4 to +4
     currentPitch = Math.max(-4, Math.min(4, st));
-    sliderPitch.value = currentPitch;
     valPitch.textContent = (currentPitch > 0 ? '+' : '') + currentPitch + ' st';
 
     // Indepnedent Control via soundtouch.js

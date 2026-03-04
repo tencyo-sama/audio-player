@@ -66,120 +66,104 @@
     </main>
 
     <!-- Controls Area (Fixed Bottom for Mobile) -->
-    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-2 py-3 overflow-y-auto"
-        style="max-height: 55vh;">
-        <!-- Timeline and Seek -->
-        <div class="row g-0 align-items-center mb-3">
-            <div class="col-12 text-center text-secondary mb-1" style="font-size: 0.8rem; font-family: monospace;">
+    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-1 py-2 overflow-y-auto"
+        style="max-height: 45vh;">
+
+        <!-- 1. Primary Transport Controls (Play, Stop, Skips, & Time) -->
+        <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+            <div class="text-secondary" style="font-size: 0.75rem; font-family: monospace;">
                 <span id="timeCurrent">00:00.0</span> / <span id="timeTotal">00:00.0</span>
             </div>
-            <div class="col-12 px-2">
-                <input type="range" class="form-range" id="seekSlider" value="0" min="0" max="100" step="0.1" disabled>
+            <div class="d-flex justify-content-center align-items-center gap-2">
+                <button
+                    class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn-sm"
+                    id="btnSkipBack">
+                    <i class="bi bi-rewind-fill"></i>
+                </button>
+                <button
+                    class="btn btn-primary rounded-circle shadow-lg d-flex justify-content-center align-items-center play-btn-sm"
+                    id="btnPlayPause" disabled>
+                    <i class="bi bi-play-fill" id="iconPlay"></i>
+                </button>
+                <button
+                    class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn-sm"
+                    id="btnSkipFwd">
+                    <i class="bi bi-fast-forward-fill"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Primary Transport Controls (Play, Stop, Skips) -->
-        <div class="d-flex justify-content-center align-items-center gap-3 mb-4">
-            <!-- Loop Toggle -->
-            <button
-                class="btn btn-outline-secondary rounded-circle d-flex justify-content-center align-items-center control-btn-sm"
-                id="btnLoopMode" title="Loop Mode">
-                <i class="bi bi-repeat" id="iconLoopMode"></i>
-            </button>
-
-            <button
-                class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn"
-                id="btnSkipBack">
-                <i class="bi bi-rewind-fill"></i>
-            </button>
-            <button
-                class="btn btn-primary rounded-circle shadow-lg d-flex justify-content-center align-items-center play-btn"
-                id="btnPlayPause" disabled>
-                <i class="bi bi-play-fill" id="iconPlay"></i>
-            </button>
-            <button
-                class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn"
-                id="btnSkipFwd">
-                <i class="bi bi-fast-forward-fill"></i>
-            </button>
-        </div>
-
-        <!-- Sliders: Tempo, Pitch, Sync -->
-        <div class="card bg-dark border-secondary mb-3">
-            <div class="card-body p-2">
-                <!-- Tempo Slider -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i
-                                class="bi bi-speedometer2 me-1"></i>Tempo</label>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-light fw-bold" id="valTempo" style="font-family: monospace;">100%</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
-                                id="btnResetTempo">Reset</button>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="small text-secondary">50%</span>
-                        <input type="range" class="form-range flex-grow-1" id="sliderTempo" min="0.5" max="1.2"
-                            step="0.01" value="1.0">
-                        <span class="small text-secondary">120%</span>
-                    </div>
-                </div>
-
-                <!-- Pitch Slider -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i
-                                class="bi bi-music-note me-1"></i>Pitch</label>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-light fw-bold" id="valPitch" style="font-family: monospace;">0 st</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
-                                id="btnResetPitch">Reset</button>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="small text-secondary">-4</span>
-                        <input type="range" class="form-range flex-grow-1" id="sliderPitch" min="-4" max="4" step="1"
-                            value="0">
-                        <span class="small text-secondary">+4</span>
-                    </div>
-                </div>
-
-                <!-- Sync Slider -->
-                <div class="mb-1" id="syncControlContainer">
-                    <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i
-                                class="bi bi-clock-history me-1"></i>Video Sync Offset</label>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-light fw-bold" id="valSync" style="font-family: monospace;">0.00s</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
-                                id="btnResetSync">Reset</button>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncMinus"><i
-                                class="bi bi-dash"></i></button>
-                        <input type="range" class="form-range flex-grow-1" id="sliderSync" min="-1.0" max="1.0"
-                            step="0.01" value="0.0">
-                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncPlus"><i
-                                class="bi bi-plus"></i></button>
-                    </div>
-                    <small class="text-muted" style="font-size: 0.65rem;">If video lags behind audio, increase offset
-                        (+).</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- A-B Loop Controls -->
-        <div class="card bg-dark border-secondary">
-            <div class="card-body p-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-                <span class="small text-secondary"><i class="bi bi-arrow-repeat me-1"></i>A-B Loop</span>
+        <!-- 2. A-B Loop Controls -->
+        <div class="card bg-dark border-secondary mb-2">
+            <div class="card-body p-1 px-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <button class="btn btn-sm btn-outline-secondary d-flex justify-content-center align-items-center"
+                    id="btnLoopMode" title="Loop Mode" style="width: 38px;">
+                    <i class="bi bi-repeat" id="iconLoopMode"></i>
+                </button>
                 <div class="btn-group flex-grow-1" role="group">
                     <button class="btn btn-sm btn-outline-info" id="btnSetA">Set A</button>
                     <button class="btn btn-sm btn-outline-info" id="btnSetB">Set B</button>
                 </div>
-                <button class="btn btn-sm btn-outline-danger px-3" id="btnClearLoop" disabled><i
+                <button class="btn btn-sm btn-outline-danger px-3 border-0" id="btnClearLoop" disabled><i
                         class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+
+        <!-- 3. Tempo and Pitch (Side by side) -->
+        <div class="row g-2 mb-2">
+            <!-- Tempo Column -->
+            <div class="col-6">
+                <div class="card bg-dark border-secondary h-100">
+                    <div class="card-body p-1 text-center">
+                        <div class="text-secondary small mb-1"><i class="bi bi-speedometer2 me-1"></i>Tempo</div>
+                        <div class="d-flex justify-content-between align-items-center gap-1">
+                            <button class="btn btn-sm btn-secondary p-1" id="btnTempoDown"
+                                style="width: 32px;">-</button>
+                            <span class="text-light fw-bold flex-grow-1" id="valTempo"
+                                style="font-family: monospace; font-size: 0.9rem;">100%</span>
+                            <button class="btn btn-sm btn-secondary p-1" id="btnTempoUp" style="width: 32px;">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Pitch Column -->
+            <div class="col-6">
+                <div class="card bg-dark border-secondary h-100">
+                    <div class="card-body p-1 text-center">
+                        <div class="text-secondary small mb-1"><i class="bi bi-music-note me-1"></i>Pitch</div>
+                        <div class="d-flex justify-content-between align-items-center gap-1">
+                            <button class="btn btn-sm btn-secondary p-1" id="btnPitchDown"
+                                style="width: 32px;">♭</button>
+                            <span class="text-light fw-bold flex-grow-1" id="valPitch"
+                                style="font-family: monospace; font-size: 0.9rem;">0 st</span>
+                            <button class="btn btn-sm btn-secondary p-1" id="btnPitchUp" style="width: 32px;">#</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Sync Slider -->
+        <div class="card bg-dark border-secondary">
+            <div class="card-body p-1 px-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label mb-0 text-secondary" style="font-size: 0.75rem;"><i
+                            class="bi bi-clock-history me-1"></i>A/V Sync Offset</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-light fw-bold" id="valSync"
+                            style="font-family: monospace; font-size: 0.8rem;">0.00s</span>
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.7rem;"
+                            id="btnResetSync">Reset</button>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-outline-secondary btn-sm py-0 px-2 border-0" id="btnSyncMinus"><i
+                            class="bi bi-dash"></i></button>
+                    <input type="range" class="form-range flex-grow-1" id="sliderSync" min="-1.0" max="1.0" step="0.01"
+                        value="0.0">
+                    <button class="btn btn-outline-secondary btn-sm py-0 px-2 border-0" id="btnSyncPlus"><i
+                            class="bi bi-plus"></i></button>
+                </div>
             </div>
         </div>
     </footer>
