@@ -25,9 +25,12 @@ let rAF_ID = null;
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
+const videoSelector = document.getElementById('videoSelector');
 const videoPlayer = document.getElementById('videoPlayer');
 const audioVisualizer = document.getElementById('audioVisualizer');
 const noFileMsg = document.getElementById('noFileMsg');
+const btnFullscreenToggle = document.getElementById('btnFullscreenToggle');
+const mediaContainer = document.getElementById('mediaContainer');
 
 // Controls
 const seekSlider = document.getElementById('seekSlider');
@@ -71,7 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('click', initAudioContext, { once: true });
     document.body.addEventListener('touchstart', initAudioContext, { once: true });
 
+    loadVideoList();
+
     fileInput.addEventListener('change', handleFileLoad);
+    videoSelector.addEventListener('change', handleRemoteVideoSelect);
+
+    // Fullscreen Toggle
+    btnFullscreenToggle.addEventListener('click', toggleFullscreen);
 
     // Playback
     btnPlayPause.addEventListener('click', togglePlay);
@@ -145,31 +154,124 @@ async function handleFileLoad(e) {
         videoPlayer.src = fileUrl;
         videoPlayer.muted = true; // Audio is handled by WebAudio independently
         videoPlayer.classList.remove('d-none');
+        btnFullscreenToggle.classList.remove('d-none');
         audioVisualizer.classList.add('d-none');
         videoPlayer.load();
     } else {
         videoPlayer.classList.add('d-none');
+        btnFullscreenToggle.classList.add('d-none');
         audioVisualizer.classList.remove('d-none');
     }
 
     // Decode Audio Data
     try {
         const arrayBuffer = await file.arrayBuffer();
-        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-        setupPitchShifter();
-
-        timeTotal.textContent = formatTime(audioBuffer.duration);
-        seekSlider.disabled = false;
-        btnPlayPause.disabled = false;
-        clearABLoop();
-        setLoopMode(LOOP_OFF); // Reset loop mode on new file
-
+        await loadAudioData(arrayBuffer);
     } catch (err) {
-        alert("Failed to decode audio data. It might be unsupported or corrupted.");
+        alert("Failed to decode audio data.");
         console.error(err);
     }
 }
+
+// Loads a video from the remote 'videos/' directory
+async function handleRemoteVideoSelect(e) {
+    const filename = e.target.value;
+    if (!filename) return;
+
+    // Reset local UI if picking from network
+    fileInput.value = '';
+
+    initAudioContext();
+    stopPlayback();
+    noFileMsg.classList.add('d-none');
+
+    isVideo = true;
+    const remoteUrl = `videos/${filename}`;
+
+    // Set video src directly
+    videoPlayer.src = remoteUrl;
+    videoPlayer.muted = true;
+    videoPlayer.classList.remove('d-none');
+    btnFullscreenToggle.classList.remove('d-none');
+    audioVisualizer.classList.add('d-none');
+    videoPlayer.load();
+
+    // Fetch same video data for WebAudio processing
+    try {
+        const response = await fetch(remoteUrl);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const arrayBuffer = await response.arrayBuffer();
+        await loadAudioData(arrayBuffer);
+    } catch (err) {
+        alert("Failed to fetch remote audio data.");
+        console.error(err);
+    }
+}
+
+async function loadAudioData(arrayBuffer) {
+    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    setupPitchShifter();
+
+    timeTotal.textContent = formatTime(audioBuffer.duration);
+    seekSlider.disabled = false;
+    btnPlayPause.disabled = false;
+    clearABLoop();
+    setLoopMode(LOOP_OFF);
+}
+
+// Fetch list of available videos downloaded via main.py
+async function loadVideoList() {
+    try {
+        const resp = await fetch('video_list.json');
+        if (!resp.ok) return; // likely doesn't exist yet/empty
+        const list = await resp.json();
+
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = item;
+            videoSelector.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn("Failed loading video list. Possibly not generated yet.", e);
+    }
+}
+
+// --- Fullscreen Handling (Container Expand Approach) ---
+// Using HTML5 Fullscreen API on the media container to keep controls logic fully alive underneath.
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        if (mediaContainer.requestFullscreen) {
+            mediaContainer.requestFullscreen();
+        } else if (mediaContainer.webkitRequestFullscreen) { /* Safari */
+            mediaContainer.webkitRequestFullscreen();
+        } else if (mediaContainer.msRequestFullscreen) { /* IE11 */
+            mediaContainer.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { /* Safari */
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { /* IE11 */
+            document.msExitFullscreen();
+        }
+    }
+}
+
+// Update icon based on fullscreen state
+document.addEventListener('fullscreenchange', updateFullscreenIcon);
+document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+document.addEventListener('msfullscreenchange', updateFullscreenIcon);
+
+function updateFullscreenIcon() {
+    const icon = btnFullscreenToggle.querySelector('i');
+    if (document.fullscreenElement) {
+        icon.classList.replace('bi-arrows-fullscreen', 'bi-fullscreen-exit');
+    } else {
+        icon.classList.replace('bi-fullscreen-exit', 'bi-arrows-fullscreen');
+    }
+}
+
 
 function setupPitchShifter() {
     if (pitchShifter) {
@@ -434,8 +536,8 @@ function updateLoopOverlay() {
 
 // --- Parameter Adjustments ---
 function setTempo(val) {
-    // Clamp 0.5 - 2.0
-    currentTempo = Math.max(0.5, Math.min(2.0, val));
+    // Clamp 0.5 - 1.2
+    currentTempo = Math.max(0.5, Math.min(1.2, val));
     sliderTempo.value = currentTempo;
     valTempo.textContent = Math.round(currentTempo * 100) + '%';
 
@@ -447,8 +549,8 @@ function setTempo(val) {
 }
 
 function setPitch(st) {
-    // Clamp -12 to 12
-    currentPitch = Math.max(-12, Math.min(12, st));
+    // Clamp -4 to +4
+    currentPitch = Math.max(-4, Math.min(4, st));
     sliderPitch.value = currentPitch;
     valPitch.textContent = (currentPitch > 0 ? '+' : '') + currentPitch + ' st';
 

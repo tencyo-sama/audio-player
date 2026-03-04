@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja" data-bs-theme="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -11,16 +12,24 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body class="bg-dark text-light">
 
     <!-- Navbar / Header -->
     <nav class="navbar navbar-dark bg-black border-bottom border-secondary fixed-top">
-        <div class="container-fluid d-flex flex-nowrap align-items-center">
+        <div class="container-fluid d-flex flex-wrap align-items-center gap-2">
             <span class="navbar-brand mb-0 h1 text-truncate" style="font-size: 1.1rem;">
                 <i class="bi bi-music-note-beamed text-primary me-2"></i>A/V Player
             </span>
-            <div class="d-flex align-items-center flex-grow-1 ms-2">
-                <input class="form-control form-control-sm border-secondary bg-dark text-light" type="file" id="fileInput" accept="audio/*,video/mp4,video/webm">
+            <div class="d-flex align-items-center flex-grow-1 gap-2">
+                <!-- Repository Video Selector -->
+                <select id="videoSelector"
+                    class="form-select form-select-sm border-secondary bg-dark text-light w-auto">
+                    <option value="">-- Load from list --</option>
+                </select>
+                <!-- Local File Input -->
+                <input class="form-control form-control-sm border-secondary bg-dark text-light" type="file"
+                    id="fileInput" accept="audio/*,video/mp4,video/webm">
             </div>
         </div>
     </nav>
@@ -30,7 +39,7 @@
         <!-- Message for NO FILE -->
         <div id="noFileMsg" class="text-center text-secondary">
             <i class="bi bi-file-earmark-music display-1"></i>
-            <p class="mt-3">Tap "Choose File" to load Media</p>
+            <p class="mt-3">Tap "Choose File" or select from list to load Media</p>
         </div>
 
         <!-- Audio Visualizer -->
@@ -39,17 +48,26 @@
         </div>
 
         <!-- Video Player -->
-        <video id="videoPlayer" class="w-100 h-100 d-none" playsinline disablepictureinpicture controlslist="nodownload noplaybackrate"></video>
+        <video id="videoPlayer" class="w-100 h-100 d-none" playsinline disablepictureinpicture
+            controlslist="nodownload noplaybackrate"></video>
+
+        <!-- Fullscreen Toggle Button (overlay) -->
+        <button id="btnFullscreenToggle" class="btn btn-outline-light position-absolute d-none"
+            style="top: 10px; right: 10px; z-index: 20; border: none; background: rgba(0,0,0,0.5); font-size: 1.2rem;">
+            <i class="bi bi-arrows-fullscreen"></i>
+        </button>
 
         <!-- Overlay: Loop Info (A-B) -->
-        <div id="loopOverlay" class="position-absolute px-3 py-1 bg-dark bg-opacity-75 rounded-pill d-none" style="top: 10px; right: 10px; z-index: 10; font-size: 0.85rem; border: 1px solid #0dcaf0;">
+        <div id="loopOverlay" class="position-absolute px-3 py-1 bg-dark bg-opacity-75 rounded-pill d-none"
+            style="top: 10px; left: 10px; z-index: 10; font-size: 0.85rem; border: 1px solid #0dcaf0;">
             <i class="bi bi-arrow-repeat text-info me-1"></i>
             <span id="loopA" class="fw-bold">--:--</span> - <span id="loopB" class="fw-bold">--:--</span>
         </div>
     </main>
 
     <!-- Controls Area (Fixed Bottom for Mobile) -->
-    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-2 py-3 overflow-y-auto" style="max-height: 60vh;">
+    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-2 py-3 overflow-y-auto"
+        style="max-height: 55vh;">
         <!-- Timeline and Seek -->
         <div class="row g-0 align-items-center mb-3">
             <div class="col-12 text-center text-secondary mb-1" style="font-size: 0.8rem; font-family: monospace;">
@@ -63,17 +81,25 @@
         <!-- Primary Transport Controls (Play, Stop, Skips) -->
         <div class="d-flex justify-content-center align-items-center gap-3 mb-4">
             <!-- Loop Toggle -->
-            <button class="btn btn-outline-secondary rounded-circle d-flex justify-content-center align-items-center control-btn-sm" id="btnLoopMode" title="Loop Mode">
+            <button
+                class="btn btn-outline-secondary rounded-circle d-flex justify-content-center align-items-center control-btn-sm"
+                id="btnLoopMode" title="Loop Mode">
                 <i class="bi bi-repeat" id="iconLoopMode"></i>
             </button>
-            
-            <button class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn" id="btnSkipBack">
+
+            <button
+                class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn"
+                id="btnSkipBack">
                 <i class="bi bi-rewind-fill"></i>
             </button>
-            <button class="btn btn-primary rounded-circle shadow-lg d-flex justify-content-center align-items-center play-btn" id="btnPlayPause" disabled>
+            <button
+                class="btn btn-primary rounded-circle shadow-lg d-flex justify-content-center align-items-center play-btn"
+                id="btnPlayPause" disabled>
                 <i class="bi bi-play-fill" id="iconPlay"></i>
             </button>
-            <button class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn" id="btnSkipFwd">
+            <button
+                class="btn btn-outline-light rounded-circle d-flex justify-content-center align-items-center control-btn"
+                id="btnSkipFwd">
                 <i class="bi bi-fast-forward-fill"></i>
             </button>
         </div>
@@ -84,50 +110,62 @@
                 <!-- Tempo Slider -->
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i class="bi bi-speedometer2 me-1"></i>Tempo</label>
+                        <label class="form-label mb-0 small text-secondary"><i
+                                class="bi bi-speedometer2 me-1"></i>Tempo</label>
                         <div class="d-flex align-items-center gap-2">
                             <span class="text-light fw-bold" id="valTempo" style="font-family: monospace;">100%</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small" id="btnResetTempo">Reset</button>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
+                                id="btnResetTempo">Reset</button>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="small text-secondary">50%</span>
-                        <input type="range" class="form-range flex-grow-1" id="sliderTempo" min="0.5" max="2.0" step="0.01" value="1.0">
-                        <span class="small text-secondary">200%</span>
+                        <input type="range" class="form-range flex-grow-1" id="sliderTempo" min="0.5" max="1.2"
+                            step="0.01" value="1.0">
+                        <span class="small text-secondary">120%</span>
                     </div>
                 </div>
 
                 <!-- Pitch Slider -->
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i class="bi bi-music-note me-1"></i>Pitch</label>
+                        <label class="form-label mb-0 small text-secondary"><i
+                                class="bi bi-music-note me-1"></i>Pitch</label>
                         <div class="d-flex align-items-center gap-2">
                             <span class="text-light fw-bold" id="valPitch" style="font-family: monospace;">0 st</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small" id="btnResetPitch">Reset</button>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
+                                id="btnResetPitch">Reset</button>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="small text-secondary">-12</span>
-                        <input type="range" class="form-range flex-grow-1" id="sliderPitch" min="-12" max="12" step="1" value="0">
-                        <span class="small text-secondary">+12</span>
+                        <span class="small text-secondary">-4</span>
+                        <input type="range" class="form-range flex-grow-1" id="sliderPitch" min="-4" max="4" step="1"
+                            value="0">
+                        <span class="small text-secondary">+4</span>
                     </div>
                 </div>
 
                 <!-- Sync Slider -->
                 <div class="mb-1" id="syncControlContainer">
                     <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <label class="form-label mb-0 small text-secondary"><i class="bi bi-clock-history me-1"></i>Video Sync Offset</label>
+                        <label class="form-label mb-0 small text-secondary"><i
+                                class="bi bi-clock-history me-1"></i>Video Sync Offset</label>
                         <div class="d-flex align-items-center gap-2">
                             <span class="text-light fw-bold" id="valSync" style="font-family: monospace;">0.00s</span>
-                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small" id="btnResetSync">Reset</button>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2 small"
+                                id="btnResetSync">Reset</button>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncMinus"><i class="bi bi-dash"></i></button>
-                        <input type="range" class="form-range flex-grow-1" id="sliderSync" min="-1.0" max="1.0" step="0.01" value="0.0">
-                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncPlus"><i class="bi bi-plus"></i></button>
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncMinus"><i
+                                class="bi bi-dash"></i></button>
+                        <input type="range" class="form-range flex-grow-1" id="sliderSync" min="-1.0" max="1.0"
+                            step="0.01" value="0.0">
+                        <button class="btn btn-outline-secondary btn-sm py-0 px-1" id="btnSyncPlus"><i
+                                class="bi bi-plus"></i></button>
                     </div>
-                    <small class="text-muted" style="font-size: 0.65rem;">If video lags behind audio, increase offset (+).</small>
+                    <small class="text-muted" style="font-size: 0.65rem;">If video lags behind audio, increase offset
+                        (+).</small>
                 </div>
             </div>
         </div>
@@ -140,7 +178,8 @@
                     <button class="btn btn-sm btn-outline-info" id="btnSetA">Set A</button>
                     <button class="btn btn-sm btn-outline-info" id="btnSetB">Set B</button>
                 </div>
-                <button class="btn btn-sm btn-outline-danger px-3" id="btnClearLoop" disabled><i class="bi bi-x-lg"></i></button>
+                <button class="btn btn-sm btn-outline-danger px-3" id="btnClearLoop" disabled><i
+                        class="bi bi-x-lg"></i></button>
             </div>
         </div>
     </footer>
@@ -153,4 +192,5 @@
     <!-- Main App Logic -->
     <script src="js/app.js"></script>
 </body>
+
 </html>
