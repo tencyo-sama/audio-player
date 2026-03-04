@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download Video
+        if: contains(github.event.issue.title, 'https')
+        run: |
+          mkdir -p videos
+          # ギター練習用なら720p以下で十分なので制限をかけ、確実にmp4で出力
+          yt-dlp -f "best[ext=mp4][height<=720]" \
+                 -o "videos/%(title)s.%(ext)s" \
+                 "${{ github.event.issue.title }}"
+
       - name: Install yt-dlp
         run: |
           sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
