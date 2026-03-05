@@ -33,6 +33,7 @@ const btnFullscreenToggle = document.getElementById('btnFullscreenToggle');
 const mediaContainer = document.getElementById('mediaContainer');
 
 // Controls
+const seekSlider = document.getElementById('seekSlider');
 const timeCurrent = document.getElementById('timeCurrent');
 const timeTotal = document.getElementById('timeTotal');
 
@@ -86,6 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
     btnPlayPause.addEventListener('click', togglePlay);
     btnSkipBack.addEventListener('click', () => skipTime(-5));
     btnSkipFwd.addEventListener('click', () => skipTime(5));
+
+    // Seek
+    seekSlider.addEventListener('input', (e) => {
+        if (!pitchShifter) return;
+        const perc = parseFloat(e.target.value) / 100;
+        const targetTime = perc * pitchShifter.duration;
+        seekTo(targetTime);
+    });
 
     // Fullscreen video tap-to-pause
     videoPlayer.addEventListener('click', () => {
@@ -212,6 +221,7 @@ async function loadAudioData(arrayBuffer) {
     setupPitchShifter();
 
     timeTotal.textContent = formatTime(audioBuffer.duration);
+    seekSlider.disabled = false;
     btnPlayPause.disabled = false;
     clearABLoop();
     setLoopMode(LOOP_OFF);
@@ -460,6 +470,9 @@ function masterSyncLoop() {
 
 function updateUI(timeInSeconds) {
     timeCurrent.textContent = formatTime(timeInSeconds);
+    if (!seekSlider.matches(':active')) { // only update slider if user isn't dragging it
+        seekSlider.value = pitchShifter ? (timeInSeconds / pitchShifter.duration) * 100 : 0;
+    }
 }
 
 // --- A-B Loop Logic ---

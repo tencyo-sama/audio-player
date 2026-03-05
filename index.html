@@ -66,8 +66,13 @@
     </main>
 
     <!-- Controls Area (Fixed Bottom for Mobile) -->
-    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-1 py-2 overflow-y-auto"
+    <footer id="controlsArea" class="bg-black border-top border-secondary fixed-bottom px-1 py-1 overflow-y-auto"
         style="max-height: 45vh;">
+
+        <!-- Seek Slider -->
+        <div class="px-2 mt-1 mb-1">
+            <input type="range" class="form-range" id="seekSlider" value="0" min="0" max="100" step="0.1" disabled style="height: 0.5rem;" title="Seek">
+        </div>
 
         <!-- 1. Primary Transport Controls (Play, Stop, Skips, & Time) -->
         <div class="d-flex justify-content-between align-items-center mb-2 px-2">
